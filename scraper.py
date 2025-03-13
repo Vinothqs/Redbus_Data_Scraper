@@ -3,19 +3,29 @@ from selenium.webdriver.common.by import By
 import sqlite3
 import time
 
-# List of cities (Modify as needed)
-cities = ["Hyderabad", "Vijayawada", "Chennai", "Bangalore", "Delhi", "Jaipur", "Mumbai", "Pune"]
+# List of cities and their corresponding states
+city_state_mapping = {
+    "Hyderabad": "Telangana",
+    "Vijayawada": "Andhra Pradesh",
+    "Chennai": "Tamil Nadu",
+    "Bangalore": "Karnataka",
+    "Delhi": "Delhi",
+    "Jaipur": "Rajasthan",
+    "Mumbai": "Maharashtra",
+    "Pune": "Maharashtra"
+}
 
-# Setup SQLite database (Fresh Start)
+# Setup SQLite database
 conn = sqlite3.connect("bus_data.db")
 cursor = conn.cursor()
 
-# Create table (Fresh start with price & rating columns)
+# Create table with 'state' column
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS bus_data (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     source TEXT,
     destination TEXT,
+    state TEXT,  -- New column for state
     bus_name TEXT,
     departure_time TEXT,
     price TEXT,
@@ -28,8 +38,8 @@ conn.commit()
 driver = webdriver.Firefox()
 
 # Loop through all city combinations
-for source in cities:
-    for destination in cities:
+for source in city_state_mapping.keys():
+    for destination in city_state_mapping.keys():
         if source != destination:  # Avoid same-city routes
             url = f"https://www.redbus.in/bus-tickets/{source.lower()}-to-{destination.lower()}"
             driver.get(url)
@@ -43,6 +53,9 @@ for source in cities:
             prices = driver.find_elements(By.XPATH, "//div[contains(@class, 'fare')]//span")
             ratings = driver.find_elements(By.XPATH, "//div[contains(@class, 'rating')]//span")
 
+            # Get state from mapping
+            state = city_state_mapping[source]
+
             # Save data to database
             for i in range(len(bus_names)):
                 name = bus_names[i].text.strip() if i < len(bus_names) else "N/A"
@@ -50,11 +63,11 @@ for source in cities:
                 price = prices[i].text.strip() if i < len(prices) else "N/A"
                 rating = ratings[i].text.strip() if i < len(ratings) else "N/A"
 
-                cursor.execute("INSERT INTO bus_data (source, destination, bus_name, departure_time, price, rating) VALUES (?, ?, ?, ?, ?, ?)",
-                               (source, destination, name, time_, price, rating))
+                cursor.execute("INSERT INTO bus_data (source, destination, state, bus_name, departure_time, price, rating) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                               (source, destination, state, name, time_, price, rating))
                 conn.commit()
 
-            print(f"✅ Data extracted for {source} to {destination}")
+            print(f"✅ Data extracted for {source} ({state}) to {destination}")
 
 # Close database & browser
 conn.close()
